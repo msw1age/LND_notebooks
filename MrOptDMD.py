@@ -64,12 +64,15 @@ class MrOptDMD(DMDBase):
         and `4`. Default is 2.
     """
 
-    def __init__(self, dmd, max_level=2, max_cycles=1,min_cycles=-1):
+    def __init__(self, dmd, max_level=2, max_cycles=1,min_cycles=-1,amp_min = 0, amp_max = np.inf,verbose=False):
         self.dmd = dmd
         self.max_cycles = max_cycles
         # Added min cycles
         self.min_cycles = min_cycles
         self.max_level = max_level
+        self.amp_min = amp_min
+        self.amp_max = amp_max
+        self.verbose = verbose
         self._build_tree()
 
     def __iter__(self):
@@ -446,8 +449,12 @@ Expected one item per level, got {} out of {} levels.""".format(
                 "Redefining `max_level` to {}".format(self.max_level)
             )
 
-        def slow_modes(dmd, rho,xi):
-            return (np.abs(np.imag(dmd.eigs)) < rho * 2 * np.pi)*(xi*2*np.pi < np.abs(np.imag(dmd.eigs)))
+        def slow_modes(dmd, rho,xi,amp_min,amp_max):
+            above_min_amp = dmd.amplitudes>amp_min
+            below_max_amp = dmd.amplitudes<amp_max
+            above_min_freq = np.abs(np.imag(dmd.eigs))>xi*2*np.pi
+            below_max_freq = np.abs(np.imag(dmd.eigs))<rho*2*np.pi
+            return above_min_amp*below_max_amp*above_min_freq*below_max_freq
 
         X = self.snapshots.copy()
         for level in self.dmd_tree.levels:
@@ -464,7 +471,7 @@ Expected one item per level, got {} out of {} levels.""".format(
                     rho = self.max_cycles / x.shape[1]
                     # Added min cycles
                     xi = self.min_cycles / np.sqrt(x.shape[1])
-                    slow_modes_selector = partial(slow_modes, rho=rho,xi=xi)
+                    slow_modes_selector = partial(slow_modes, rho=rho,xi=xi,amp_min=self.amp_min,amp_max=self.amp_max)
 
                     select_modes(current_dmd, slow_modes_selector)
                 except np.linalg.LinAlgError:
