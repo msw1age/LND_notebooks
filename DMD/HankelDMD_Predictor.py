@@ -27,6 +27,8 @@ class HankelDMD_Predictor():
         self.H = None
         if dmd is None:
             self.dmd = DMD(self._svd_rank,exact=True)
+        else:
+            self.dmd = dmd
     
     def _hankel_maker(self,X):
         gm = np.zeros([self._d*self._m, self._window_length-1])
