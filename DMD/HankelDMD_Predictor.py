@@ -1,5 +1,5 @@
 import numpy as np
-from pydmd import DMD
+from pydmd import DMD,BOPDMD
 from sklearn.utils.extmath import randomized_svd
 
 class HankelDMD_Predictor():
@@ -31,15 +31,13 @@ class HankelDMD_Predictor():
             self.dmd = dmd
     
     def _hankel_maker(self,X):
-        gm = np.zeros([self._d*self._m, self._window_length-1])
-        gp = np.zeros([self._d*self._m, self._window_length-1])
+        H = np.zeros([self._d*self._m, self._window_length])
         for jj in range(self._m):
             tseries = X[:, jj]
             hankel_idx = np.array([np.arange(ii, ii+self._d) for ii in range(len(tseries) - self._d + 1)])
             hmat = tseries[hankel_idx].T
-            gm[jj*self._d:(jj+1)*self._d, :] = hmat[:, :-1]
-            gp[jj*self._d:(jj+1)*self._d, :] = hmat[:, 1:]
-        return gm, gp
+            H[jj*self._d:(jj+1)*self._d, :] = hmat
+        return H
     
     def fit(self,X):
         """
@@ -50,10 +48,15 @@ class HankelDMD_Predictor():
         self._n = X.shape[0]
         self._m = X.shape[1]
         self._window_length = self._n - self._d + 1
-        self.H,_ = self._hankel_maker(X)
-        self.dmd.fit(self.H)
+        self.H = self._hankel_maker(X)
         self._U, self._sig, self._Vh = randomized_svd(self.H,n_components=self._svd_rank)
-        self.A = np.real((self._U.T@self.dmd.modes@np.diag(self.dmd.eigs))@(np.linalg.pinv(self.dmd.modes)@self._U))
+        if isinstance(self.dmd, BOPDMD):
+            self.dmd.fit(self.H,np.arange(self._window_length-1))
+            self.A = np.real((self._U.T@self.dmd.modes@np.diag(np.exp(self.dmd.eigs)))@(np.linalg.pinv(self.dmd.modes)@self._U))
+        else:
+            self.dmd.fit(self.H)
+            self.A = np.real((self._U.T@self.dmd.modes@np.diag(self.dmd.eigs))@(np.linalg.pinv(self.dmd.modes)@self._U))
+        
             
     def predict(self,N,reconstruct=True):
         """
