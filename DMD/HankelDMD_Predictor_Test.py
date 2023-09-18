@@ -4,7 +4,7 @@ import matplotlib.pylab as plt
 plt.rcParams['figure.dpi']=400
 
 n = 0
-k = 5
+k = 101
 d = 400
 n_ts = 500
 hdmdp = HankelDMD_Predictor.HankelDMD_Predictor(d,k)
@@ -25,4 +25,6 @@ ax[0].plot(SVn[500:570])
 ax[0].set_ylabel("True Data")
 ax[1].plot(rec)
 ax[1].set_ylabel("Forecast")
+print("Fit initial condition: " + str(rec[0]))
+print("True initial condition: " + str(SVn[(n+1)*n_ts-1]))
 plt.show()
